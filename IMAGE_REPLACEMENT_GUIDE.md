@@ -5,11 +5,13 @@ Replace the file at the exact path below. Keep the filename unchanged. Recommend
 ## Hero / campaign images
 
 - `assets/campaigns/hero-main.webp` — homepage slide 1, desktop landscape, recommended 2400×1350 or larger, no embedded text
-- `assets/campaigns/hero-chinese.webp` — homepage slide 2, Chinese handcrafted campaign, desktop landscape
-- `assets/campaigns/hero-seasonal.webp` — homepage slide 3 and Seasonal Edit campaign, desktop landscape
-- `assets/campaigns/festival-mid-autumn.webp` — Mid-Autumn Festival campaign
-- `assets/campaigns/closing-waistband.webp` — final page waist banner; this is the place for the branded campaign image containing text
+- `assets/campaigns/hero-chinese.webp` — homepage slide 2, Chinese handcrafted campaign, desktop landscape, no embedded text
+- `assets/campaigns/hero-seasonal.webp` — homepage slide 3 and Seasonal Edit campaign, desktop landscape, no embedded text
+- `assets/campaigns/festival-mid-autumn.webp` — Mid-Autumn Festival campaign image
+- `assets/campaigns/closing-waistband.webp` — final page waist banner; this is the designated place for a branded campaign image containing text
 - `assets/campaigns/brand-logo.webp` — PhDessert logo artwork, `匠心手作 · HANDCRAFTED`
+
+The three homepage hero slogans are rendered by the website itself. Do not bake text into the hero background images.
 
 ## Product images
 
@@ -54,9 +56,15 @@ Replace the file at the exact path below. Keep the filename unchanged. Recommend
 - `assets/products/matcha-fig.webp` — 抹茶无花果蛋糕
 - `assets/products/fig-cheesecake.webp` — 无花果芝士蛋糕
 
+### Festival Editions — Mid-Autumn Festival
+- `assets/products/mooncake-custard-snow-skin.webp` — 奶黄冰皮月饼
+- `assets/products/mooncake-oreo-snow-skin.webp` — 奥利奥冰皮月饼
+
+Until the two dedicated mooncake product files are uploaded, the live site automatically falls back to the Mid-Autumn campaign image. Replacing these two paths later requires no HTML change.
+
 ## Recommended web image sizes
 
-- Hero / campaign: 2400×1350 px or larger, 16:9, no text except `closing-waistband.webp`
+- Hero / campaign: 2400×1350 px or larger, 16:9, no embedded text except `closing-waistband.webp`
 - Product cards: 1400×1400 px or larger, 1:1
 - Logo: 1600×1600 px or larger, 1:1
 - Waist banner: ideally 2400×750 to 2400×900 px
