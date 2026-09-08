@@ -1,0 +1,159 @@
+name: Apply PhDessert indicative prices
+
+on:
+  push:
+    paths:
+      - '.github/workflows/apply-indicative-prices.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply-prices:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Add indicative prices to menu and order message
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
+
+          prices = {
+              'peach-blossom': ('£3.80 each', '£3.80 / 个'),
+              'osmanthus-cake': ('£3.50 each', '£3.50 / 个'),
+              'taro-pastry': ('£4.20 each', '£4.20 / 个'),
+              'pork-floss': ('£4.50 each', '£4.50 / 个'),
+              'mung-bean-cake': ('£3.20 each', '£3.20 / 个'),
+              'rice-cake': ('£3.00 each', '£3.00 / 个'),
+              'honey-cake': ('£4.00 per portion', '£4.00 / 份'),
+              'double-skin-milk': ('£4.50 per cup', '£4.50 / 份'),
+              'palmier': ('£3.50 each', '£3.50 / 个'),
+              'lemon-bavarois': ('£5.80 per portion', '£5.80 / 份'),
+              'tiramisu': ('£5.50 per portion', '£5.50 / 份'),
+              'yuzu-lemon-mousse': ('From £24', '£24 起'),
+              'basque-original': ('From £14', '£14 起'),
+              'basque-cocoa': ('From £15', '£15 起'),
+              'basque-matcha': ('From £15', '£15 起'),
+              'basque-pistachio': ('From £16', '£16 起'),
+              'basque-matcha-yuzu': ('From £16', '£16 起'),
+              'jasmine-grape-matcha': ('From £32', '£32 起'),
+              'blueberry-cake': ('From £30', '£30 起'),
+              'matcha-yuzu-cheesecake': ('From £28', '£28 起'),
+              'mango-pomelo-coconut': ('From £32', '£32 起'),
+              'light-cheesecake': ('From £18', '£18 起'),
+              'strawberry-cream': ('From £28', '£28 起'),
+              'coconut-angel-roll': ('From £18', '£18 起'),
+              'yoghurt-bowl': ('£6.50 per bowl', '£6.50 / 碗'),
+              'matcha-fig': ('From £32', '£32 起'),
+              'fig-cheesecake': ('From £30', '£30 起'),
+              'mooncake-custard-snow-skin': ('£4.80 each · £18 box of 4', '£4.80 / 个 · 4个装 £18'),
+              'mooncake-oreo-snow-skin': ('£4.80 each · £18 box of 4', '£4.80 / 个 · 4个装 £18'),
+          }
+
+          lines = s.splitlines()
+          seen = set()
+          for i, line in enumerate(lines):
+              if line.startswith("{id:'"):
+                  pid = line.split("'", 2)[1]
+                  if pid in prices:
+                      en, zh = prices[pid]
+                      if 'priceEn:' not in line:
+                          comma = ',' if line.endswith(',') else ''
+                          core = line[:-1] if comma else line
+                          if not core.endswith('}'):
+                              raise RuntimeError(f'Unexpected product line for {pid}')
+                          core = core[:-1] + f",priceEn:'{en}',priceZh:'{zh}'" + '}'
+                          lines[i] = core + comma
+                      seen.add(pid)
+          missing = set(prices) - seen
+          if missing:
+              raise RuntimeError(f'Missing products: {sorted(missing)}')
+          s = '\n'.join(lines) + '\n'
+
+          css_old = ".selling{margin-top:9px!important;color:#765f40!important;font-style:italic;font-family:var(--serif)!important;font-size:15px!important}.enquire"
+          css_new = ".selling{margin-top:9px!important;color:#765f40!important;font-style:italic;font-family:var(--serif)!important;font-size:15px!important}.price{margin-top:11px!important;color:var(--ink)!important;font-size:11px!important;font-weight:600;letter-spacing:.03em}.enquire"
+          if '.price{' not in s:
+              if css_old not in s:
+                  raise RuntimeError('Could not locate selling/enquire CSS')
+              s = s.replace(css_old, css_new, 1)
+
+          render_old = '<p class="selling">${locale===\'en\'?p.sellEn:p.sellZh}</p><button class="enquire'
+          render_new = '<p class="selling">${locale===\'en\'?p.sellEn:p.sellZh}</p><p class="price">${locale===\'en\'?p.priceEn:p.priceZh}</p><button class="enquire'
+          if 'class="price"' not in s:
+              if s.count(render_old) < 3:
+                  raise RuntimeError('Could not locate all three product rendering templates')
+              s = s.replace(render_old, render_new)
+
+          old_en = 'Open a collection to explore the current menu. Availability is confirmed when you enquire.'
+          new_en = 'Open a collection to explore the current menu. Indicative prices are shown for each item; final pricing depends on size and customisation and is confirmed when you enquire.'
+          old_zh = '点击 ＋ 展开每个系列。具体可预约日期和当周供应以咨询确认为准。'
+          new_zh = '点击 ＋ 展开每个系列。每款均标注参考价格；尺寸和定制会影响最终价格，以咨询确认为准。'
+          s = s.replace(old_en, new_en)
+          s = s.replace(old_zh, new_zh)
+
+          dropdown_old = "products.map(p=>`<option value=\"${p.id}\">${locale==='en'?p.en:p.zh}</option>`).join('')"
+          dropdown_new = "products.map(p=>`<option value=\"${p.id}\">${locale==='en'?p.en:p.zh} · ${locale==='en'?p.priceEn:p.priceZh}</option>`).join('')"
+          if 'p.priceEn:p.priceZh' not in s.split('function populateProducts', 1)[1].split('function bindOrder', 1)[0]:
+              if dropdown_old not in s:
+                  raise RuntimeError('Could not locate product dropdown template')
+              s = s.replace(dropdown_old, dropdown_new, 1)
+
+          data_old = "contact:$('#contact').value,notes:$('#notes').value};"
+          data_new = "contact:$('#contact').value,notes:$('#notes').value,price:p?(locale==='en'?p.priceEn:p.priceZh):''};"
+          if 'price:p?' not in s:
+              if data_old not in s:
+                  raise RuntimeError('Could not locate order data object')
+              s = s.replace(data_old, data_new, 1)
+
+          if 'Listed price: ${data.price}' not in s:
+              s = s.replace('Dessert: ${data.p}\\nFormat / size:', 'Dessert: ${data.p}\\nListed price: ${data.price}\\nFormat / size:', 1)
+          if '参考价格：${data.price}' not in s:
+              s = s.replace('甜品：${data.p}\\n规格 / 尺寸：', '甜品：${data.p}\\n参考价格：${data.price}\\n规格 / 尺寸：', 1)
+
+          checks = [
+              s.count('priceEn:') >= 29,
+              'class="price"' in s,
+              'Indicative prices are shown for each item' in s,
+              'Listed price: ${data.price}' in s,
+              '参考价格：${data.price}' in s,
+              'haoyuwang0816@outlook.com' in s,
+              '447942851817' in s,
+              'Chat with us' in s,
+          ]
+          if not all(checks):
+              raise RuntimeError(f'Post-update checks failed: {checks}')
+
+          p.write_text(s, encoding='utf-8')
+          print('Pricing update prepared successfully.')
+          PY
+
+      - name: Verify JavaScript syntax
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          s = Path('index.html').read_text(encoding='utf-8')
+          scripts = re.findall(r'<script>(.*?)</script>', s, re.S)
+          if not scripts:
+              raise SystemExit('No inline script found')
+          Path('/tmp/phdessert.js').write_text(scripts[-1], encoding='utf-8')
+          PY
+          node --check /tmp/phdessert.js
+
+      - name: Commit pricing update and remove workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm .github/workflows/apply-indicative-prices.yml
+          git add index.html
+          git commit -m 'feat: add indicative menu pricing'
+          git push
