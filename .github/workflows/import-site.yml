@@ -3,7 +3,7 @@ name: Import PhDessert site bundle
 on:
   push:
     paths:
-      - '_import/**'
+      - '_import/READY'
 
 permissions:
   contents: write
@@ -17,7 +17,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cat _import/part-*.b64 | base64 --decode > /tmp/phdessert-site.zip
+          cat _import/chunk-*.b64 | base64 --decode > /tmp/phdessert-site.zip
           unzip -o /tmp/phdessert-site.zip -d .
           rm -rf _import
       - name: Commit imported site
