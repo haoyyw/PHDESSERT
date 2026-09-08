@@ -15,7 +15,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: RED — selector behaviour is absent before implementation
+      - name: RED selector behaviour is absent before implementation
         shell: bash
         run: |
           set +e
@@ -104,9 +104,11 @@ jobs:
               s = s.replace(css_old, css_new, 1)
 
           old_card = "function productCard(p){return `<article class=\"product-card\"><div class=\"product-photo\">${imgTag(p)}</div><div class=\"product-copy\"><h4>${locale==='en'?p.en:p.zh}</h4><p>${locale==='en'?p.descEn:p.descZh}</p><p class=\"selling\">${locale==='en'?p.sellEn:p.sellZh}</p><p class=\"price\">${locale==='en'?p.priceEn:p.priceZh}</p><button class=\"enquire order-trigger\" data-product=\"${p.id}\">${locale==='en'?'Enquire ↗':'预约咨询 ↗'}</button></div></article>`}"
-          new_card = """function cakePricing(p){const sizes=[['4','4″'],['6','6″'],['8','8″'],['slice',locale==='en'?'Slice':'单片']];return `<div class=\"cake-pricing\" data-product=\"${p.id}\" data-selected-size=\"6\"><div class=\"cake-size-tabs\" role=\"group\" aria-label=\"${locale==='en'?'Choose cake size':'选择蛋糕尺寸'}\">${sizes.map(([key,label])=>`<button type=\"button\" class=\"cake-size-btn${key==='6'?' active':''}\" data-size=\"${key}\" data-label=\"${label}\" data-price=\"${p.sizePrices[key]}\" aria-pressed=\"${key==='6'}\">${label}</button>`).join('')}</div><div class=\"cake-price-display\"><span class=\"cake-price-size\">6″</span><strong class=\"cake-price-value\">${p.sizePrices['6']}</strong></div><p class=\"cake-price-note\">${locale==='en'?'Slice = 1/8 of an 8″ cake · whole cakes offer better value.':'单片为8寸蛋糕的1/8 · 整蛋糕购买更优惠。'}</p></div>`}
-function bindCakePricing(root=document){root.querySelectorAll('.cake-size-btn').forEach(b=>{b.onclick=()=>{const box=b.closest('.cake-pricing');box.querySelectorAll('.cake-size-btn').forEach(x=>{const active=x===b;x.classList.toggle('active',active);x.setAttribute('aria-pressed',String(active))});box.dataset.selectedSize=b.dataset.size;box.querySelector('.cake-price-size').textContent=b.dataset.label;box.querySelector('.cake-price-value').textContent=b.dataset.price}})}
-function productCard(p){return `<article class=\"product-card\"><div class=\"product-photo\">${imgTag(p)}</div><div class=\"product-copy\"><h4>${locale==='en'?p.en:p.zh}</h4><p>${locale==='en'?p.descEn:p.descZh}</p><p class=\"selling\">${locale==='en'?p.sellEn:p.sellZh}</p>${p.group==='cakes'?cakePricing(p):`<p class=\"price\">${locale==='en'?p.priceEn:p.priceZh}</p>`}<button class=\"enquire order-trigger\" data-product=\"${p.id}\">${locale==='en'?'Enquire ↗':'预约咨询 ↗'}</button></div></article>`}"""
+          new_card = (
+              "function cakePricing(p){const sizes=[['4','4″'],['6','6″'],['8','8″'],['slice',locale==='en'?'Slice':'单片']];return `<div class=\"cake-pricing\" data-product=\"${p.id}\" data-selected-size=\"6\"><div class=\"cake-size-tabs\" role=\"group\" aria-label=\"${locale==='en'?'Choose cake size':'选择蛋糕尺寸'}\">${sizes.map(([key,label])=>`<button type=\"button\" class=\"cake-size-btn${key==='6'?' active':''}\" data-size=\"${key}\" data-label=\"${label}\" data-price=\"${p.sizePrices[key]}\" aria-pressed=\"${key==='6'}\">${label}</button>`).join('')}</div><div class=\"cake-price-display\"><span class=\"cake-price-size\">6″</span><strong class=\"cake-price-value\">${p.sizePrices['6']}</strong></div><p class=\"cake-price-note\">${locale==='en'?'Slice = 1/8 of an 8″ cake · whole cakes offer better value.':'单片为8寸蛋糕的1/8 · 整蛋糕购买更优惠。'}</p></div>`}\n"
+              "function bindCakePricing(root=document){root.querySelectorAll('.cake-size-btn').forEach(b=>{b.onclick=()=>{const box=b.closest('.cake-pricing');box.querySelectorAll('.cake-size-btn').forEach(x=>{const active=x===b;x.classList.toggle('active',active);x.setAttribute('aria-pressed',String(active))});box.dataset.selectedSize=b.dataset.size;box.querySelector('.cake-price-size').textContent=b.dataset.label;box.querySelector('.cake-price-value').textContent=b.dataset.price}})}\n"
+              "function productCard(p){return `<article class=\"product-card\"><div class=\"product-photo\">${imgTag(p)}</div><div class=\"product-copy\"><h4>${locale==='en'?p.en:p.zh}</h4><p>${locale==='en'?p.descEn:p.descZh}</p><p class=\"selling\">${locale==='en'?p.sellEn:p.sellZh}</p>${p.group==='cakes'?cakePricing(p):`<p class=\"price\">${locale==='en'?p.priceEn:p.priceZh}</p>`}<button class=\"enquire order-trigger\" data-product=\"${p.id}\">${locale==='en'?'Enquire ↗':'预约咨询 ↗'}</button></div></article>`}"
+          )
           if 'function cakePricing(p)' not in s:
               if old_card not in s:
                   raise RuntimeError('Could not locate productCard function')
@@ -122,12 +124,11 @@ function productCard(p){return `<article class=\"product-card\"><div class=\"pro
           p.write_text(s, encoding='utf-8')
           PY
 
-      - name: GREEN — verify default 6-inch selector and premium slice pricing
+      - name: GREEN verify default 6-inch selector and premium slice pricing
         shell: bash
         run: |
           python - <<'PY'
           from pathlib import Path
-          import re
 
           s = Path('index.html').read_text(encoding='utf-8')
           expected = {
@@ -152,17 +153,17 @@ function productCard(p){return `<article class=\"product-card\"><div class=\"pro
               'class=\"cake-size-tabs\"',
               "key==='6'?' active':''",
               'data-selected-size=\"6\"',
-              "<span class=\"cake-price-size\">6″</span>",
+              '<span class=\"cake-price-size\">6″</span>',
               "<strong class=\"cake-price-value\">${p.sizePrices['6']}</strong>",
-              "function bindCakePricing(root=document)",
+              'function bindCakePricing(root=document)',
               "box.querySelector('.cake-price-value').textContent=b.dataset.price",
-              "bindCakePricing(root);bindOrder()",
+              'bindCakePricing(root);bindOrder()',
               'whole cakes offer better value',
               '整蛋糕购买更优惠',
           ]
           missing = [x for x in required if x not in s]
           assert not missing, missing
-          print('GREEN confirmed: six cake selectors default to 6-inch and all slice prices carry a retail premium.')
+          print('GREEN confirmed: selectors default to 6-inch and all slice prices carry a retail premium.')
           PY
 
       - name: Verify JavaScript syntax
