@@ -1,0 +1,191 @@
+name: Apply boutique cake pricing selector
+
+on:
+  push:
+    paths:
+      - '.github/workflows/apply-boutique-cake-pricing.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: RED — selector behaviour is absent before implementation
+        shell: bash
+        run: |
+          set +e
+          python - <<'PY'
+          from pathlib import Path
+          s = Path('index.html').read_text(encoding='utf-8')
+          required = [
+              'class="cake-size-tabs"',
+              'function cakePricing(p)',
+              'function bindCakePricing(root=document)',
+              "key==='6'",
+              "slice:'£8'",
+              "slice:'£7.50'",
+              "slice:'£5'",
+          ]
+          missing = [x for x in required if x not in s]
+          if missing:
+              print('EXPECTED RED: boutique size selector is not implemented yet.')
+              print('Missing:', missing)
+              raise SystemExit(1)
+          raise SystemExit('RED test unexpectedly passed: feature already exists')
+          PY
+          status=$?
+          set -e
+          if [ "$status" -eq 0 ]; then
+            echo 'RED test did not fail as expected'
+            exit 1
+          fi
+          echo 'RED confirmed.'
+
+      - name: Implement clickable boutique cake pricing
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
+
+          cake_updates = {
+              'jasmine-grape-matcha': (
+                  "priceEn:'4″ £32 · 6″ £42 · 8″ £56 · Slice (1/8 of 8″) £7',priceZh:'4寸 £32 · 6寸 £42 · 8寸 £56 · 单片（8寸的1/8）£7'",
+                  "priceEn:'4″ £32 · 6″ £42 · 8″ £56 · Slice £8',priceZh:'4寸 £32 · 6寸 £42 · 8寸 £56 · 单片 £8',sizePrices:{'4':'£32','6':'£42','8':'£56',slice:'£8'}",
+              ),
+              'blueberry-cake': (
+                  "priceEn:'4″ £30 · 6″ £40 · 8″ £52 · Slice (1/8 of 8″) £6.50',priceZh:'4寸 £30 · 6寸 £40 · 8寸 £52 · 单片（8寸的1/8）£6.50'",
+                  "priceEn:'4″ £30 · 6″ £40 · 8″ £52 · Slice £7.50',priceZh:'4寸 £30 · 6寸 £40 · 8寸 £52 · 单片 £7.50',sizePrices:{'4':'£30','6':'£40','8':'£52',slice:'£7.50'}",
+              ),
+              'matcha-yuzu-cheesecake': (
+                  "priceEn:'4″ £28 · 6″ £38 · 8″ £48 · Slice (1/8 of 8″) £6',priceZh:'4寸 £28 · 6寸 £38 · 8寸 £48 · 单片（8寸的1/8）£6'",
+                  "priceEn:'4″ £28 · 6″ £38 · 8″ £48 · Slice £7',priceZh:'4寸 £28 · 6寸 £38 · 8寸 £48 · 单片 £7',sizePrices:{'4':'£28','6':'£38','8':'£48',slice:'£7'}",
+              ),
+              'mango-pomelo-coconut': (
+                  "priceEn:'4″ £32 · 6″ £42 · 8″ £56 · Slice (1/8 of 8″) £7',priceZh:'4寸 £32 · 6寸 £42 · 8寸 £56 · 单片（8寸的1/8）£7'",
+                  "priceEn:'4″ £32 · 6″ £42 · 8″ £56 · Slice £8',priceZh:'4寸 £32 · 6寸 £42 · 8寸 £56 · 单片 £8',sizePrices:{'4':'£32','6':'£42','8':'£56',slice:'£8'}",
+              ),
+              'light-cheesecake': (
+                  "priceEn:'4″ £18 · 6″ £26 · 8″ £36 · Slice (1/8 of 8″) £4.50',priceZh:'4寸 £18 · 6寸 £26 · 8寸 £36 · 单片（8寸的1/8）£4.50'",
+                  "priceEn:'4″ £18 · 6″ £26 · 8″ £36 · Slice £5',priceZh:'4寸 £18 · 6寸 £26 · 8寸 £36 · 单片 £5',sizePrices:{'4':'£18','6':'£26','8':'£36',slice:'£5'}",
+              ),
+              'strawberry-cream': (
+                  "priceEn:'4″ £28 · 6″ £38 · 8″ £48 · Slice (1/8 of 8″) £6',priceZh:'4寸 £28 · 6寸 £38 · 8寸 £48 · 单片（8寸的1/8）£6'",
+                  "priceEn:'4″ £28 · 6″ £38 · 8″ £48 · Slice £7',priceZh:'4寸 £28 · 6寸 £38 · 8寸 £48 · 单片 £7',sizePrices:{'4':'£28','6':'£38','8':'£48',slice:'£7'}",
+              ),
+          }
+
+          lines = s.splitlines()
+          changed = set()
+          for i, line in enumerate(lines):
+              for pid, (old, new) in cake_updates.items():
+                  if line.startswith("{id:'" + pid + "'"):
+                      if old not in line:
+                          raise RuntimeError(f'Expected existing price text not found for {pid}')
+                      lines[i] = line.replace(old, new, 1)
+                      changed.add(pid)
+                      break
+          if changed != set(cake_updates):
+              raise RuntimeError(f'Missing cake records: {sorted(set(cake_updates)-changed)}')
+          s = '\n'.join(lines) + '\n'
+
+          css_old = ".price{margin-top:11px!important;color:var(--ink)!important;font-size:11px!important;font-weight:600;letter-spacing:.03em}.enquire"
+          css_new = ".price{margin-top:11px!important;color:var(--ink)!important;font-size:11px!important;font-weight:600;letter-spacing:.03em}.cake-pricing{margin-top:15px;padding-top:14px;border-top:1px solid var(--line)}.cake-size-tabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}.cake-size-btn{min-width:0;border:1px solid rgba(37,48,39,.2);background:transparent;padding:7px 5px;cursor:pointer;color:var(--muted);font-size:9px;letter-spacing:.06em;transition:background .2s,color .2s,border-color .2s}.cake-size-btn:hover{border-color:#8d7959;color:var(--ink)}.cake-size-btn.active{background:var(--green900);border-color:var(--green900);color:var(--ivory)}.cake-price-display{display:flex;align-items:baseline;gap:9px;margin-top:13px}.cake-price-size{font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:#806c50}.cake-price-value{font:500 28px/1 var(--serif);color:var(--ink)}.cake-price-note{margin-top:9px!important;color:var(--muted)!important;font-size:9px!important;line-height:1.55!important}.enquire"
+          if '.cake-size-tabs{' not in s:
+              if css_old not in s:
+                  raise RuntimeError('Could not locate price/enquire CSS insertion point')
+              s = s.replace(css_old, css_new, 1)
+
+          old_card = "function productCard(p){return `<article class=\"product-card\"><div class=\"product-photo\">${imgTag(p)}</div><div class=\"product-copy\"><h4>${locale==='en'?p.en:p.zh}</h4><p>${locale==='en'?p.descEn:p.descZh}</p><p class=\"selling\">${locale==='en'?p.sellEn:p.sellZh}</p><p class=\"price\">${locale==='en'?p.priceEn:p.priceZh}</p><button class=\"enquire order-trigger\" data-product=\"${p.id}\">${locale==='en'?'Enquire ↗':'预约咨询 ↗'}</button></div></article>`}"
+          new_card = """function cakePricing(p){const sizes=[['4','4″'],['6','6″'],['8','8″'],['slice',locale==='en'?'Slice':'单片']];return `<div class=\"cake-pricing\" data-product=\"${p.id}\" data-selected-size=\"6\"><div class=\"cake-size-tabs\" role=\"group\" aria-label=\"${locale==='en'?'Choose cake size':'选择蛋糕尺寸'}\">${sizes.map(([key,label])=>`<button type=\"button\" class=\"cake-size-btn${key==='6'?' active':''}\" data-size=\"${key}\" data-label=\"${label}\" data-price=\"${p.sizePrices[key]}\" aria-pressed=\"${key==='6'}\">${label}</button>`).join('')}</div><div class=\"cake-price-display\"><span class=\"cake-price-size\">6″</span><strong class=\"cake-price-value\">${p.sizePrices['6']}</strong></div><p class=\"cake-price-note\">${locale==='en'?'Slice = 1/8 of an 8″ cake · whole cakes offer better value.':'单片为8寸蛋糕的1/8 · 整蛋糕购买更优惠。'}</p></div>`}
+function bindCakePricing(root=document){root.querySelectorAll('.cake-size-btn').forEach(b=>{b.onclick=()=>{const box=b.closest('.cake-pricing');box.querySelectorAll('.cake-size-btn').forEach(x=>{const active=x===b;x.classList.toggle('active',active);x.setAttribute('aria-pressed',String(active))});box.dataset.selectedSize=b.dataset.size;box.querySelector('.cake-price-size').textContent=b.dataset.label;box.querySelector('.cake-price-value').textContent=b.dataset.price}})}
+function productCard(p){return `<article class=\"product-card\"><div class=\"product-photo\">${imgTag(p)}</div><div class=\"product-copy\"><h4>${locale==='en'?p.en:p.zh}</h4><p>${locale==='en'?p.descEn:p.descZh}</p><p class=\"selling\">${locale==='en'?p.sellEn:p.sellZh}</p>${p.group==='cakes'?cakePricing(p):`<p class=\"price\">${locale==='en'?p.priceEn:p.priceZh}</p>`}<button class=\"enquire order-trigger\" data-product=\"${p.id}\">${locale==='en'?'Enquire ↗':'预约咨询 ↗'}</button></div></article>`}"""
+          if 'function cakePricing(p)' not in s:
+              if old_card not in s:
+                  raise RuntimeError('Could not locate productCard function')
+              s = s.replace(old_card, new_card, 1)
+
+          old_render = "}).join('');bindMenu();bindOrder();wireImages(root)}"
+          new_render = "}).join('');bindMenu();bindCakePricing(root);bindOrder();wireImages(root)}"
+          if 'bindCakePricing(root);bindOrder()' not in s:
+              if old_render not in s:
+                  raise RuntimeError('Could not locate renderMenu binding sequence')
+              s = s.replace(old_render, new_render, 1)
+
+          p.write_text(s, encoding='utf-8')
+          PY
+
+      - name: GREEN — verify default 6-inch selector and premium slice pricing
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          s = Path('index.html').read_text(encoding='utf-8')
+          expected = {
+              'jasmine-grape-matcha': ('£32','£42','£56','£8'),
+              'blueberry-cake': ('£30','£40','£52','£7.50'),
+              'matcha-yuzu-cheesecake': ('£28','£38','£48','£7'),
+              'mango-pomelo-coconut': ('£32','£42','£56','£8'),
+              'light-cheesecake': ('£18','£26','£36','£5'),
+              'strawberry-cream': ('£28','£38','£48','£7'),
+          }
+          for pid, vals in expected.items():
+              line = next((x for x in s.splitlines() if x.startswith("{id:'"+pid+"'")), None)
+              assert line, pid
+              for key, val in zip(('4','6','8','slice'), vals):
+                  needle = (f"'{key}':'{val}'" if key != 'slice' else f"slice:'{val}'")
+                  assert needle in line, (pid, needle)
+              whole_eighth = float(vals[2].replace('£','')) / 8
+              slice_price = float(vals[3].replace('£',''))
+              assert slice_price > whole_eighth, (pid, slice_price, whole_eighth)
+
+          required = [
+              'class=\"cake-size-tabs\"',
+              "key==='6'?' active':''",
+              'data-selected-size=\"6\"',
+              "<span class=\"cake-price-size\">6″</span>",
+              "<strong class=\"cake-price-value\">${p.sizePrices['6']}</strong>",
+              "function bindCakePricing(root=document)",
+              "box.querySelector('.cake-price-value').textContent=b.dataset.price",
+              "bindCakePricing(root);bindOrder()",
+              'whole cakes offer better value',
+              '整蛋糕购买更优惠',
+          ]
+          missing = [x for x in required if x not in s]
+          assert not missing, missing
+          print('GREEN confirmed: six cake selectors default to 6-inch and all slice prices carry a retail premium.')
+          PY
+
+      - name: Verify JavaScript syntax
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          s = Path('index.html').read_text(encoding='utf-8')
+          scripts = re.findall(r'<script>(.*?)</script>', s, re.S)
+          if not scripts:
+              raise SystemExit('No inline script found')
+          Path('/tmp/phdessert.js').write_text(scripts[-1], encoding='utf-8')
+          PY
+          node --check /tmp/phdessert.js
+
+      - name: Commit verified boutique pricing update and remove workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm .github/workflows/apply-boutique-cake-pricing.yml
+          git add index.html
+          git commit -m 'feat: add boutique clickable cake pricing'
+          git push
