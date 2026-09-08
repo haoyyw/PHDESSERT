@@ -7,6 +7,7 @@ Official static website for **PhDessert · 匠心手作 · HANDCRAFTED**.
 - `index.html` — complete website, including layout, bilingual content and interactions.
 - `assets/campaigns/` — hero, festival, logo and closing waist-banner artwork.
 - `assets/products/` — one image per menu item.
+- `docs/history/` — migrated historical redesign specification and implementation plan.
 - `IMAGE_REPLACEMENT_GUIDE.md` — exact image-to-product mapping and recommended dimensions.
 
 ## Menu architecture
