@@ -1,0 +1,128 @@
+name: Apply PhDessert contact update
+
+on:
+  push:
+    paths:
+      - '.github/workflows/apply-contact-update.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  update-contact:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Write QR assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p assets/contact
+          printf '%s' 'UklGRrABAABXRUJQVlA4TKMBAAAv68F6AA9wHven0L9nfP7jAZDbRpIkpQftv5fjQc2hUPZ8Yw9E9N+R2kiS5Dp1QoLzEGTXLB+Yf9LPkXMNn+gwj48JBTa91pIWUaGgaTw4kOk1l4+mV7Q10ql6HSYc7yyiMnMnlNQoMouAmpqmylaVb27P3zzZ3bu3rEnNE69a9xxLSyTv43jOph8+cnumw7lKy8dFBaVwgxOVwrLcITx/FtkZQiUWagt16EJiI8lAN7LbWjJzTGSqPYJb6+hqLaE5g1YzxRwmoNMUF/b6Lno7KMsQnSV1cEztcUSASiJwruIiQQzTGWpCSQi35rJo0o4pZMErmeCmcqMiautesgkYYsi0lqx4TMMODksu0VdZRHC7N2wxvdbhiksUZlyArTCNmJJzVRbXp1HaLRMwuxyxs4Rjho92ocECoV4atpZzyXVZZENQwup/DSktPgGD6ENELmcom2OVFhNkLrU1cpmjSH9pMRdyju8fX0dh1VyWOPIpKrNntMJs+rPKchpadRhN53w0tE98eosJvL0kl6JpJhc9a8uRbcOCBPSOBis95d/0MwA=' | base64 --decode > assets/contact/wechat-qr.webp
+          printf '%s' 'UklGRhQBAABXRUJQVlA4TAgBAAAvi8FiAA9wHven0L9nfP7jAZLbSJIkyTRw/bV0DewRUVWYecYeiOj/BPCfrL4MKnVUwJc5GWE3UAGqwWDYz4ZqnqrBAEM1B8RgUKnHRKn0jOwjPKyG/Wi8XAwGg8GXJ+P9UIDKL70MZhhUA9Vg8BkwJ0MNVIBqUKmso/LxSuwGFXClqtQZboZBNVAfAxWgAurNoFI/BoPBQJ25GKqBSgUMBiqrgcrHKwGoBh3UF+7hbNAxKzCAOoN6M1QD4B4A34eb8X6sgAEw/PBl8GUG1WCGuR1hN8wKqAbAPUdDNcNgGMGX4evFoFJVKh2Aam4Iq2qgUvl4KPYBmwr4fDReBoM+VQOgmovxP6s=' | base64 --decode > assets/contact/whatsapp-qr.webp
+
+      - name: Patch contact experience
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > /tmp/contact_patch.py <<'PY'
+          from pathlib import Path
+          path = Path('index.html')
+          s = path.read_text(encoding='utf-8')
+
+          def replace_once(old, new, label):
+              global s
+              count = s.count(old)
+              if count != 1:
+                  raise SystemExit(f'{label}: expected exactly 1 match, found {count}')
+              s = s.replace(old, new, 1)
+
+          anchor='html[data-locale="zh"] h1,html[data-locale="zh"] h2,html[data-locale="zh"] h3,html[data-locale="zh"] h4,html[data-locale="zh"] .festival-mark{font-family:var(--zh)}'
+          contact_css='''.contact-modal{width:min(940px,calc(100vw - 28px));border:0;padding:0;background:var(--paper);color:var(--ink);box-shadow:0 28px 90px rgba(0,0,0,.35)}.contact-modal::backdrop{background:rgba(12,18,13,.72);backdrop-filter:blur(3px)}.contact-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:28px}.contact-card{border:1px solid var(--line);background:#fffdf8;padding:20px;min-width:0;display:flex;flex-direction:column}.contact-card h3{font:500 31px/1 var(--serif);margin:8px 0 10px}.contact-card p{margin:0;color:var(--muted);font-size:11px;line-height:1.75}.contact-card .contact-detail{margin-top:12px;color:var(--ink);font-size:11px;word-break:break-word}.contact-qr{width:100%;aspect-ratio:1/1;object-fit:contain;background:#fff;padding:8px;border:1px solid rgba(37,48,39,.08)}.contact-card .button{margin-top:auto;padding-top:12px;padding-bottom:12px}.contact-channel{margin:0 0 4px;color:#816c4e;font-size:8px;letter-spacing:.18em;text-transform:uppercase}.result-contact{margin-top:24px;padding-top:24px;border-top:1px solid var(--line)}.result-contact>p{margin:0;color:var(--muted);font-size:11px}.result-contact .contact-grid{margin-top:18px}.result-contact .contact-card{padding:16px}.result-contact .contact-card h3{font-size:25px}.chat-actions{display:flex;gap:10px;flex-wrap:wrap}.contact-email-link{font-size:11px;text-decoration:underline;text-underline-offset:3px}'''
+          replace_once(anchor, contact_css+'\n'+anchor, 'contact CSS')
+          replace_once('@media(max-width:680px){:root{--shell:calc(100vw - 28px)}', '@media(max-width:680px){.contact-grid{grid-template-columns:1fr}.header-actions{gap:12px}.contact-trigger{display:none}:root{--shell:calc(100vw - 28px)}', 'mobile contact CSS')
+
+          replace_once(
+          '<div class="header-actions"><button id="lang" class="lang"><span class="en active">EN</span> / <span class="zh">中文</span></button><button class="text-btn order-trigger" data-product="" data-en="Order / Enquire" data-zh="预约 / 咨询">Order / Enquire</button></div>',
+          '<div class="header-actions"><button id="lang" class="lang"><span class="en active">EN</span> / <span class="zh">中文</span></button><button class="text-btn contact-trigger" data-en="Chat with us" data-zh="联系我们">Chat with us</button><button class="text-btn order-trigger" data-product="" data-en="Order / Enquire" data-zh="预约 / 咨询">Order / Enquire</button></div>',
+          'header contact trigger')
+
+          replace_once(
+          '<button class="button button-dark order-trigger" data-product="" data-en="Order / Enquire" data-zh="预约 / 咨询">Order / Enquire</button></div><div class="process-grid">',
+          '<div class="chat-actions"><button class="button button-quiet contact-trigger" data-en="Chat with us" data-zh="联系我们">Chat with us</button><button class="button button-dark order-trigger" data-product="" data-en="Order / Enquire" data-zh="预约 / 咨询">Order / Enquire</button></div></div><div class="process-grid">',
+          'order contact trigger')
+
+          replace_once(
+          '<p class="eyebrow dark" data-en="Order enquiry" data-zh="预约咨询">Order enquiry</p><h2 data-en="Reserve a collection slot" data-zh="提交预约信息">Reserve a collection slot</h2><p data-en="Choose a dessert and collection date. Availability is confirmed before the order is finalised." data-zh="选择甜品和取货日期，最终以确认供应情况为准。">Choose a dessert and collection date. Availability is confirmed before the order is finalised.</p>',
+          '<p class="eyebrow dark" data-en="Order enquiry" data-zh="预约咨询">Order enquiry</p><h2 data-en="Prepare your order message" data-zh="生成订单信息">Prepare your order message</h2><p data-en="Fill in the details, then copy and send the order message through WeChat, WhatsApp or email. Availability is confirmed in chat." data-zh="填写信息后，复制订单内容并通过微信、WhatsApp 或邮箱发送给我们。供应情况会在聊天中确认。">Fill in the details, then copy and send the order message through WeChat, WhatsApp or email. Availability is confirmed in chat.</p>',
+          'order modal heading')
+          replace_once('<button class="button button-dark" type="submit" data-en="Create enquiry" data-zh="生成预约信息">Create enquiry</button>', '<button class="button button-dark" type="submit" data-en="Create order message" data-zh="生成订单信息">Create order message</button>', 'order submit label')
+
+          replace_once(
+          '<section id="result" class="result" hidden><h3 data-en="Your enquiry is ready." data-zh="预约信息已生成。">Your enquiry is ready.</h3><pre id="summary"></pre><div class="form-actions"><button id="copy" class="button button-dark" data-en="Copy enquiry" data-zh="复制预约信息">Copy enquiry</button><button id="edit" class="button button-quiet" data-en="Edit" data-zh="返回修改">Edit</button></div></section>',
+          '''<section id="result" class="result" hidden><h3 data-en="Your order message is ready." data-zh="订单信息已生成。">Your order message is ready.</h3><pre id="summary"></pre><div class="form-actions"><button id="copy" class="button button-dark" data-en="Copy order details" data-zh="复制订单信息">Copy order details</button><button id="edit" class="button button-quiet" data-en="Edit" data-zh="返回修改">Edit</button></div><div class="result-contact"><p data-en="Copy the order details above, then send them through WeChat, WhatsApp or email. We will confirm availability and collection details in chat." data-zh="复制上方订单信息后，通过微信、WhatsApp 或邮箱发送给我们。我们会在聊天中确认供应情况和取货细节。">Copy the order details above, then send them through WeChat, WhatsApp or email. We will confirm availability and collection details in chat.</p><div class="contact-grid"><article class="contact-card"><p class="contact-channel">WeChat · 微信</p><img class="contact-qr" src="assets/contact/wechat-qr.webp" alt="PhDessert WeChat QR code"><h3 data-en="WeChat" data-zh="微信咨询">WeChat</h3><p data-en="Scan to add us, then paste the copied order details into the chat." data-zh="扫码添加微信，再把复制好的订单信息发送给我们。">Scan to add us, then paste the copied order details into the chat.</p></article><article class="contact-card"><p class="contact-channel">WhatsApp</p><img class="contact-qr" src="assets/contact/whatsapp-qr.webp" alt="PhDessert WhatsApp QR code"><h3>WhatsApp</h3><p class="contact-detail">+44 7942 851817</p><a id="whatsappLink" class="button button-dark" href="https://wa.me/447942851817" target="_blank" rel="noopener" data-en="Open WhatsApp" data-zh="打开 WhatsApp">Open WhatsApp</a></article><article class="contact-card"><p class="contact-channel">Email · 邮箱</p><h3 data-en="Email us" data-zh="邮件咨询">Email us</h3><p data-en="Send the generated order details by email if that is more convenient." data-zh="如果更方便，也可以通过邮箱发送生成的订单信息。">Send the generated order details by email if that is more convenient.</p><p class="contact-detail"><a class="contact-email-link" href="mailto:haoyuwang0816@outlook.com">haoyuwang0816@outlook.com</a></p><a id="emailLink" class="button button-quiet" href="mailto:haoyuwang0816@outlook.com" data-en="Email order" data-zh="邮件发送订单">Email order</a></article></div></div></section>''',
+          'order result contact panel')
+
+          contact_modal='''<dialog id="contactModal" class="contact-modal"><div class="modal-shell"><button id="contactClose" class="modal-close" aria-label="Close">×</button><div class="modal-heading"><p class="eyebrow dark" data-en="Contact PhDessert" data-zh="联系 PhDessert">Contact PhDessert</p><h2 data-en="Chat with us" data-zh="联系我们">Chat with us</h2><p data-en="For orders, availability and custom requests, contact us through WeChat, WhatsApp or email." data-zh="预约、供应情况和定制需求，可以通过微信、WhatsApp 或邮箱联系我们。">For orders, availability and custom requests, contact us through WeChat, WhatsApp or email.</p></div><div class="contact-grid"><article class="contact-card"><p class="contact-channel">WeChat · 微信</p><img class="contact-qr" src="assets/contact/wechat-qr.webp" alt="PhDessert WeChat QR code"><h3 data-en="WeChat" data-zh="微信咨询">WeChat</h3><p data-en="Scan the QR code to add us on WeChat." data-zh="扫描二维码添加微信。">Scan the QR code to add us on WeChat.</p></article><article class="contact-card"><p class="contact-channel">WhatsApp</p><img class="contact-qr" src="assets/contact/whatsapp-qr.webp" alt="PhDessert WhatsApp QR code"><h3>WhatsApp</h3><p class="contact-detail">+44 7942 851817</p><a class="button button-dark" href="https://wa.me/447942851817" target="_blank" rel="noopener" data-en="Open WhatsApp" data-zh="打开 WhatsApp">Open WhatsApp</a></article><article class="contact-card"><p class="contact-channel">Email · 邮箱</p><h3 data-en="Email" data-zh="邮箱">Email</h3><p data-en="For longer enquiries or celebration-cake details, email works well too." data-zh="较长的咨询或庆祝蛋糕细节，也可以通过邮件沟通。">For longer enquiries or celebration-cake details, email works well too.</p><p class="contact-detail"><a class="contact-email-link" href="mailto:haoyuwang0816@outlook.com">haoyuwang0816@outlook.com</a></p><a class="button button-quiet" href="mailto:haoyuwang0816@outlook.com?subject=PhDessert%20Enquiry" data-en="Send email" data-zh="发送邮件">Send email</a></article></div></div></dialog>'''
+          replace_once('<script>\nconst products=[', contact_modal+'\n<script>\nconst products=[', 'contact modal')
+
+          replace_once(
+          "const modal=$('#modal');function populateProducts()",
+          "const modal=$('#modal'),contactModal=$('#contactModal');function bindContact(){$$('.contact-trigger').forEach(b=>{if(b.dataset.contactBound)return;b.dataset.contactBound='1';b.onclick=()=>contactModal.showModal()})}$('#contactClose').onclick=()=>contactModal.close();contactModal.onclick=e=>{if(e.target===contactModal)contactModal.close()};function populateProducts()",
+          'contact JS')
+          replace_once('renderMenu();renderSeasonal();renderFestival();populateProducts()}', 'renderMenu();renderSeasonal();renderFestival();populateProducts();bindContact()}', 'locale bindContact')
+          replace_once(
+          "$('#orderForm').hidden=true;$('#result').hidden=false};$('#edit').onclick",
+          "$('#orderForm').hidden=true;$('#result').hidden=false;const orderText=$('#summary').textContent;$('#whatsappLink').href='https://wa.me/447942851817?text='+encodeURIComponent(orderText);$('#emailLink').href='mailto:haoyuwang0816@outlook.com?subject='+encodeURIComponent(locale==='en'?'PhDessert Order Enquiry':'PhDessert 订单咨询')+'&body='+encodeURIComponent(orderText)};$('#edit').onclick",
+          'dynamic contact links')
+          replace_once("setTimeout(()=>$('#copy').textContent=locale==='en'?'Copy enquiry':'复制预约信息',1300)", "setTimeout(()=>$('#copy').textContent=locale==='en'?'Copy order details':'复制订单信息',1300)", 'copy reset label')
+          replace_once('wireImages();applyLocale();bindOrder();', 'wireImages();applyLocale();bindOrder();bindContact();', 'startup bindContact')
+          path.write_text(s, encoding='utf-8')
+          PY
+          python /tmp/contact_patch.py
+
+      - name: Verify contact update
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          html=Path('index.html').read_text(encoding='utf-8')
+          checks={
+            'contact trigger': html.count('contact-trigger') >= 2,
+            'contact modal': 'id="contactModal"' in html,
+            'wechat qr': 'assets/contact/wechat-qr.webp' in html,
+            'whatsapp qr': 'assets/contact/whatsapp-qr.webp' in html,
+            'whatsapp number': '447942851817' in html,
+            'email': 'haoyuwang0816@outlook.com' in html,
+            'copy flow': 'Create order message' in html and 'Copy order details' in html,
+            'dynamic whatsapp': "wa.me/447942851817?text=" in html,
+            'dynamic email': "&body='+encodeURIComponent(orderText)" in html,
+          }
+          failed=[k for k,v in checks.items() if not v]
+          if failed:
+              raise SystemExit('Missing expected features: '+', '.join(failed))
+          js=html.split('<script>',1)[1].rsplit('</script>',1)[0]
+          Path('/tmp/site.js').write_text(js,encoding='utf-8')
+          print('Feature checks PASS')
+          PY
+          node --check /tmp/site.js
+          test -s assets/contact/wechat-qr.webp
+          test -s assets/contact/whatsapp-qr.webp
+
+      - name: Commit update
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html assets/contact/wechat-qr.webp assets/contact/whatsapp-qr.webp
+          if git diff --cached --quiet; then
+            echo 'No changes to commit.'
+          else
+            git commit -m 'feat: add WeChat WhatsApp and email contact flow'
+            git push
+          fi
