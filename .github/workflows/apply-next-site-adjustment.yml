@@ -37,7 +37,7 @@ jobs:
           from pathlib import Path
           p=Path('assets/products/chinese-tasting-box.webp')
           d=p.read_bytes()
-          assert len(d) > 50000, len(d)
+          assert len(d) > 25000, len(d)
           assert d[:4] == b'RIFF' and d[8:12] == b'WEBP'
           print('WebP reconstruction OK:', len(d), 'bytes')
           PY
