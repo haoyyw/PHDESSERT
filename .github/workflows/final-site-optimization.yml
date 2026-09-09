@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - '.github/workflows/final-site-optimization.yml'
+      - '.github/scripts/finalize_site.py'
 
 permissions:
   contents: write
