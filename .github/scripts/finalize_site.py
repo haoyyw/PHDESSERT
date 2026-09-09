@@ -72,10 +72,8 @@ if "id:'chinese-tasting-box'" not in '\n'.join(lines):
         "descZh:'四件中式糕点拼盘：桃花酥、桂花糕、绿豆糕和纯大米糕，每款各一件。',"
         "sellEn:'Four signatures, one box.',sellZh:'四款经典，一盒尝遍。',"
         "priceEn:'£12.80 per set',priceZh:'£12.80 / 套',orderFormat:'tasting',"
-        "collage:['peach-blossom','osmanthus-cake','mung-bean-cake','rice-cake']},”
+        "collage:['peach-blossom','osmanthus-cake','mung-bean-cake','rice-cake']},"
     )
-    # Replace the accidental typographic comma with a normal JS comma before insertion.
-    tasting = tasting.replace('},”', '},')
     inserted = False
     for i, line in enumerate(lines):
         if line.startswith("{id:'rice-cake'"):
@@ -140,7 +138,6 @@ if old_seasonal not in s:
 s = s.replace(old_seasonal, new_seasonal, 1)
 
 # --- Order flow -----------------------------------------------------------
-# Let JavaScript populate product-appropriate format/size options.
 s = re.sub(r'<select id="size" required>.*?</select>', '<select id="size" required></select>', s, count=1)
 
 old_populate = "function populateProducts(){const sel=$('#product');const current=sel.value;sel.innerHTML=`<option value=\"\">${locale==='en'?'Please select':'请选择'}</option>`+products.map(p=>`<option value=\"${p.id}\">${locale==='en'?p.en:p.zh} · ${locale==='en'?p.priceEn:p.priceZh}</option>`).join('');if([...sel.options].some(o=>o.value===current))sel.value=current}"
@@ -161,14 +158,12 @@ if old_submit not in s:
     raise RuntimeError('Order submit block not found')
 s = s.replace(old_submit, new_submit, 1)
 
-# Refresh size labels too when language changes.
 old_locale = "renderMenu();renderSeasonal();renderFestival();populateProducts();bindContact()}"
 new_locale = "renderMenu();renderSeasonal();renderFestival();const currentProduct=products.find(x=>x.id===$('#product').value);const currentSize=$('#size').value;populateProducts();setOrderSizeForProduct(currentProduct,currentSize);bindContact()}"
 if old_locale not in s:
     raise RuntimeError('applyLocale tail not found')
 s = s.replace(old_locale, new_locale, 1)
 
-# No vague starting prices should remain after the final pass.
 if 'From £' in s or '£ 起' in s:
     raise RuntimeError('A vague starting price remains after finalization')
 
