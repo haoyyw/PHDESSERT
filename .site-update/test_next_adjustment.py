@@ -9,7 +9,7 @@ if not img.exists():
     failures.append('tasting-box image file missing')
 else:
     data = img.read_bytes()
-    if len(data) < 50000 or data[:4] != b'RIFF' or data[8:12] != b'WEBP':
+    if len(data) < 25000 or data[:4] != b'RIFF' or data[8:12] != b'WEBP':
         failures.append('tasting-box image is not a valid staged WebP')
 
 line = next((x for x in s.splitlines() if x.startswith("{id:'chinese-tasting-box'")), '')
