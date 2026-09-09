@@ -1,0 +1,77 @@
+name: Apply next PhDessert adjustment
+
+on:
+  push:
+    paths:
+      - '.github/workflows/apply-next-site-adjustment.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: RED — verify current site does not yet satisfy the change
+        shell: bash
+        run: |
+          set +e
+          python .site-update/test_next_adjustment.py
+          status=$?
+          set -e
+          if [ "$status" -eq 0 ]; then
+            echo 'RED unexpectedly passed before implementation.'
+            exit 1
+          fi
+          echo 'RED confirmed.'
+
+      - name: Reconstruct approved tasting-box image
+        shell: bash
+        run: |
+          mkdir -p assets/products
+          cat .site-update/final-image.part01 .site-update/final-image.part02 .site-update/final-image.part03 | base64 -d > assets/products/chinese-tasting-box.webp
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('assets/products/chinese-tasting-box.webp')
+          d=p.read_bytes()
+          assert len(d) > 50000, len(d)
+          assert d[:4] == b'RIFF' and d[8:12] == b'WEBP'
+          print('WebP reconstruction OK:', len(d), 'bytes')
+          PY
+
+      - name: Apply approved site changes
+        run: python .site-update/apply_next_adjustment.py
+
+      - name: GREEN — verify tasting image and roll pricing
+        run: python .site-update/test_next_adjustment.py
+
+      - name: Verify JavaScript syntax
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          s=Path('index.html').read_text(encoding='utf-8')
+          scripts=re.findall(r'<script>(.*?)</script>',s,re.S)
+          assert scripts, 'No inline script found'
+          Path('/tmp/phdessert.js').write_text(scripts[-1],encoding='utf-8')
+          assert s.count('<html') == 1 and s.count('</html>') == 1
+          assert s.count('<body') == 1 and s.count('</body>') == 1
+          print('HTML structure check OK')
+          PY
+          node --check /tmp/phdessert.js
+
+      - name: Commit verified update and remove one-off tooling
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm -r .site-update
+          git rm .github/workflows/apply-next-site-adjustment.yml
+          git add index.html assets/products/chinese-tasting-box.webp
+          git commit -m 'feat: add tasting plate image and roll slice pricing'
+          git push
